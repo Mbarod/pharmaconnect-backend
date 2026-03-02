@@ -78,7 +78,9 @@ app.post("/api/agent", async (req, res) => {
 
   res.json({ reply: completion.choices[0].message.content });
 });
+const PORT = process.env.PORT || 3000;
 
-app.listen(3000, () => {
-  console.log("PharmaConnect API running on port 3000");
+app.listen(PORT, () => {
+  console.log(`PharmaConnect API running on port ${PORT}`);
+});
 });
