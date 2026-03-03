@@ -31,7 +31,27 @@ app.get("/api/medicines", async (req, res) => {
   if (error) return res.status(400).json(error);
   res.json(data);
 });
+app.post("/api/sync-stock", async (req, res) => {
+  try {
+    const { pharmacy_id, stocks } = req.body;
 
+    if (!pharmacy_id || !stocks) {
+      return res.status(400).json({ error: "Missing data" });
+    }
+
+    for (const item of stocks) {
+      await supabase
+        .from("medicines")
+        .update({ stock: item.stock })
+        .eq("name", item.name);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Stock sync error" });
+  }
+});
 /* -------------------------
    CREATE ORDER
 -------------------------- */
@@ -82,4 +102,22 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`PharmaConnect API running on port ${PORT}`);
+});
+app.get("/api/orders/:pharmacy_id", async (req, res) => {
+  try {
+    const { pharmacy_id } = req.params;
+
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("pharmacy_id", pharmacy_id)
+      .eq("status", "pending");
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Orders fetch error" });
+  }
 });
