@@ -31,7 +31,7 @@ app.get("/api/medicines", async (req, res) => {
   if (error) return res.status(400).json(error);
   res.json(data);
 });
-app.post("/api/sync-stock", async (req, res) => {
+app.post("/api/sync-stock", verifyApiKey, async (req, res) => {
   try {
     const { pharmacy_id, stocks } = req.body;
 
@@ -52,6 +52,26 @@ app.post("/api/sync-stock", async (req, res) => {
     res.status(500).json({ error: "Stock sync error" });
   }
 });
+const verifyApiKey = async (req, res, next) => {
+  const apiKey = req.headers.authorization?.replace("Bearer ", "");
+
+  if (!apiKey) {
+    return res.status(401).json({ error: "API key required" });
+  }
+
+  const { data, error } = await supabase
+    .from("pharmacies")
+    .select("*")
+    .eq("api_key", apiKey)
+    .single();
+
+  if (error || !data) {
+    return res.status(403).json({ error: "Invalid API key" });
+  }
+
+  req.pharmacy = data;
+  next();
+};
 /* -------------------------
    CREATE ORDER
 -------------------------- */
@@ -65,7 +85,17 @@ app.post("/api/orders", async (req, res) => {
   if (error) return res.status(400).json(error);
   res.json(data);
 });
+app.get("/api/orders", verifyApiKey, async (req, res) => {
+  const pharmacy_id = req.pharmacy.id;
 
+  const { data } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("pharmacy_id", pharmacy_id)
+    .eq("status", "pending");
+
+  res.json(data);
+});
 /* -------------------------
    UPLOAD PRESCRIPTION
 -------------------------- */
