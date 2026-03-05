@@ -177,6 +177,11 @@ app.get("/api/orders/:pharmacy_id", async (req, res) => {
 });
 app.post("/api/create-order", async (req, res) => {
   try {
+
+    if (!req.body) {
+      return res.status(400).json({ error: "No body received" });
+    }
+
     const {
       user_name,
       phone,
