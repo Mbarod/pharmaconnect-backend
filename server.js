@@ -174,23 +174,17 @@ app.get("/api/orders/:pharmacy_id", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "Orders fetch error" });
   }
-});
 app.post("/api/create-order", async (req, res) => {
   try {
 
-    if (!req.body) {
-      return res.status(400).json({ error: "No body received" });
-    }
+    const body = req.body || {};
 
-    const {
-      user_name,
-      phone,
-      pharmacy_id,
-      medicine_id,
-      total_amount
-    } = req.body;
+    const user_name = body.user_name || "Test User";
+    const phone = body.phone || "070000000";
+    const pharmacy_id = body.pharmacy_id || 25;
+    const medicine_id = body.medicine_id || 10;
+    const total_amount = body.total_amount || 1500;
 
-    // 1️⃣ Create order
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert([
@@ -198,8 +192,7 @@ app.post("/api/create-order", async (req, res) => {
           user_name,
           phone,
           pharmacy_id,
-          total_amount,
-          status: "pending"
+          total_amount
         }
       ])
       .select()
@@ -207,7 +200,6 @@ app.post("/api/create-order", async (req, res) => {
 
     if (orderError) throw orderError;
 
-    // 2️⃣ Create order item
     const { error: itemError } = await supabase
       .from("order_items")
       .insert([
@@ -221,7 +213,10 @@ app.post("/api/create-order", async (req, res) => {
 
     if (itemError) throw itemError;
 
-    res.json({ success: true, order_id: order.id });
+    res.json({
+      success: true,
+      order_id: order.id
+    });
 
   } catch (error) {
     console.error(error);
