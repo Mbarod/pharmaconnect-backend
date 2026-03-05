@@ -180,15 +180,39 @@ app.post("/api/create-order", async (req, res) => {
   try {
     const { user_name, phone, pharmacy_id, medicine_id, total_amount } = req.body;
 
-    const { data, error } = await supabase
+    // 1️⃣ Create Order
+    const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert([
-        { user_name, phone, pharmacy_id, medicine_id, total_amount, status: "pending" }
+        {
+          user_name,
+          phone,
+          pharmacy_id,
+          total_amount,
+          status: "pending"
+        }
+      ])
+      .select()
+      .single();
+
+    if (orderError) throw orderError;
+
+    // 2️⃣ Create Order Item
+    const { error: itemError } = await supabase
+      .from("order_items")
+      .insert([
+        {
+          order_id: order.id,
+          medicine_id,
+          quantity: 1,
+          price: total_amount
+        }
       ]);
 
-    if (error) throw error;
+    if (itemError) throw itemError;
 
-    res.json(data);
+    res.json({ success: true, order_id: order.id });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Order creation error" });
