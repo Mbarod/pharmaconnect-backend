@@ -174,6 +174,12 @@ app.get("/api/orders/:pharmacy_id", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "Orders fetch error" });
   }
+});   // ✅ CETTE LIGNE MANQUAIT
+
+
+/* -------------------------
+   CREATE ORDER
+-------------------------- */
 app.post("/api/create-order", async (req, res) => {
   try {
 
