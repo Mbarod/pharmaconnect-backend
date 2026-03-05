@@ -126,14 +126,38 @@ app.post("/api/agent", async (req, res) => {
       { role: "user", content: message }
     ]
   });
-
-  res.json({ reply: completion.choices[0].message.content });
+res.json({ reply: completion.choices[0].message.content });
 });
-const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`PharmaConnect API running on port ${PORT}`);
+/* -------------------------
+   SEARCH MEDICINE
+-------------------------- */
+app.get("/api/search", async (req, res) => {
+  try {
+    const { name } = req.query;
+
+    const { data, error } = await supabase
+      .from("pharmacy_medicines")
+      .select(`
+        price,
+        stock,
+        pharmacies(name, city, address),
+        medicines(name, description, image_url)
+      `)
+      .ilike("medicines.name", `%${name}%`);
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Search error" });
+  }
 });
+
+/* -------------------------
+   GET ORDERS
+-------------------------- */
 app.get("/api/orders/:pharmacy_id", async (req, res) => {
   try {
     const { pharmacy_id } = req.params;
@@ -151,4 +175,13 @@ app.get("/api/orders/:pharmacy_id", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "Orders fetch error" });
   }
+});
+
+/* -------------------------
+   START SERVER
+-------------------------- */
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`PharmaConnect API running on port ${PORT}`);
 });
