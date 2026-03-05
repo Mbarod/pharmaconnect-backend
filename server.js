@@ -154,7 +154,6 @@ app.get("/api/search", async (req, res) => {
     res.status(500).json({ error: "Search error" });
   }
 });
-
 /* -------------------------
    GET ORDERS
 -------------------------- */
@@ -178,9 +177,15 @@ app.get("/api/orders/:pharmacy_id", async (req, res) => {
 });
 app.post("/api/create-order", async (req, res) => {
   try {
-    const { user_name, phone, pharmacy_id, medicine_id, total_amount } = req.body;
+    const {
+      user_name,
+      phone,
+      pharmacy_id,
+      medicine_id,
+      total_amount
+    } = req.body;
 
-    // 1️⃣ Create Order
+    // 1️⃣ Create order
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert([
@@ -197,7 +202,7 @@ app.post("/api/create-order", async (req, res) => {
 
     if (orderError) throw orderError;
 
-    // 2️⃣ Create Order Item
+    // 2️⃣ Create order item
     const { error: itemError } = await supabase
       .from("order_items")
       .insert([
