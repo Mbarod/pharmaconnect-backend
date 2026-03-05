@@ -176,7 +176,24 @@ app.get("/api/orders/:pharmacy_id", async (req, res) => {
     res.status(500).json({ error: "Orders fetch error" });
   }
 });
+app.post("/api/create-order", async (req, res) => {
+  try {
+    const { user_name, phone, pharmacy_id, medicine_id, total_amount } = req.body;
 
+    const { data, error } = await supabase
+      .from("orders")
+      .insert([
+        { user_name, phone, pharmacy_id, medicine_id, total_amount, status: "pending" }
+      ]);
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Order creation error" });
+  }
+});
 /* -------------------------
    START SERVER
 -------------------------- */
