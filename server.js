@@ -254,6 +254,32 @@ app.put("/api/order-status/:id", async (req, res) => {
     res.status(500).json({ error: "Status update error" });
   }
 });
+
+app.post("/api/order-confirm/:id", async (req,res)=>{
+
+try{
+
+const { id } = req.params;
+
+const { error } = await supabase
+.from("orders")
+.update({ status:"confirmed"})
+.eq("id",id);
+
+if(error) throw error;
+
+res.json({
+success:true
+});
+
+}catch(error){
+
+console.error(error);
+res.status(500).json({error:"confirmation error"});
+
+}
+
+});
 /* -------------------------
    START SERVER
 -------------------------- */
