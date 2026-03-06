@@ -230,6 +230,31 @@ app.post("/api/create-order", async (req, res) => {
   }
 });
 /* -------------------------
+   UPDATE ORDER STATUS
+-------------------------- */
+app.put("/api/order-status/:id", async (req, res) => {
+  try {
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const { data, error } = await supabase
+      .from("orders")
+      .update({ status })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(data);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Status update error" });
+  }
+});
+/* -------------------------
    START SERVER
 -------------------------- */
 const PORT = process.env.PORT || 3000;
