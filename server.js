@@ -280,6 +280,23 @@ res.status(500).json({error:"confirmation error"});
 }
 
 });
+app.get("/api/confirm-order/:id", async (req, res) => {
+
+  const { id } = req.params;
+
+  const { error } = await supabase
+  .from("orders")
+  .update({ status: "confirmed" })
+  .eq("id", id);
+
+  if (error) return res.json(error);
+
+  res.json({
+    success:true,
+    order_id:id
+  });
+
+});
 /* -------------------------
    START SERVER
 -------------------------- */
