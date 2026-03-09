@@ -37,6 +37,14 @@ const upload = multer({
 });
 
 /* -------------------------
+   HEALTH CHECK
+-------------------------- */
+
+app.get("/", (req, res) => {
+  res.json({ status: "PharmaConnect API running" });
+});
+
+/* -------------------------
    API KEY MIDDLEWARE
 -------------------------- */
 
@@ -66,7 +74,7 @@ const verifyApiKey = async (req, res, next) => {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("API KEY ERROR:", error);
     res.status(500).json({ error: "Auth error" });
 
   }
@@ -83,7 +91,8 @@ app.get("/api/medicines", async (req, res) => {
 
     const { data, error } = await supabase
       .from("medicines")
-      .select("*");
+      .select("*")
+      .limit(100);
 
     if (error) throw error;
 
@@ -91,7 +100,7 @@ app.get("/api/medicines", async (req, res) => {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("MEDICINES ERROR:", error);
     res.status(500).json({ error: "Medicines fetch error" });
 
   }
@@ -106,7 +115,11 @@ app.get("/api/search", async (req, res) => {
 
   try {
 
-    const name = req.query.name || "";
+    const name = req.query.name;
+
+    if (!name) {
+      return res.json([]);
+    }
 
     const { data, error } = await supabase
       .from("pharmacy_medicines")
@@ -116,7 +129,8 @@ app.get("/api/search", async (req, res) => {
         pharmacies(id,name,city,address),
         medicines(id,name,description,image_url)
       `)
-      .ilike("medicines.name", `%${name}%`);
+      .ilike("medicines.name", `%${name}%`)
+      .limit(50);
 
     if (error) throw error;
 
@@ -124,7 +138,7 @@ app.get("/api/search", async (req, res) => {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("SEARCH ERROR:", error);
     res.status(500).json({ error: "Search error" });
 
   }
@@ -139,7 +153,7 @@ app.get("/api/medicine-pharmacies/:medicine_id", async (req, res) => {
 
   try {
 
-    const medicine_id = req.params.medicine_id;
+    const { medicine_id } = req.params;
 
     const { data, error } = await supabase
       .from("pharmacy_medicines")
@@ -157,7 +171,7 @@ app.get("/api/medicine-pharmacies/:medicine_id", async (req, res) => {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("MEDICINE PHARMACIES ERROR:", error);
     res.status(500).json({ error: "Pharmacy fetch error" });
 
   }
@@ -174,7 +188,8 @@ app.get("/api/pharmacies", async (req, res) => {
 
     const { data, error } = await supabase
       .from("pharmacies")
-      .select("*");
+      .select("*")
+      .limit(100);
 
     if (error) throw error;
 
@@ -182,7 +197,7 @@ app.get("/api/pharmacies", async (req, res) => {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("PHARMACIES ERROR:", error);
     res.status(500).json({ error: "Pharmacies fetch error" });
 
   }
@@ -197,7 +212,7 @@ app.get("/api/pharmacy/:id", async (req, res) => {
 
   try {
 
-    const id = req.params.id;
+    const { id } = req.params;
 
     const { data, error } = await supabase
       .from("pharmacies")
@@ -215,7 +230,7 @@ app.get("/api/pharmacy/:id", async (req, res) => {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("PHARMACY ERROR:", error);
     res.status(500).json({ error: "Pharmacy fetch error" });
 
   }
@@ -231,6 +246,10 @@ app.post("/api/orders", async (req, res) => {
   try {
 
     const { user_name, phone, pharmacy_id, medicine_id, total_amount } = req.body;
+
+    if (!user_name || !phone || !pharmacy_id || !medicine_id) {
+      return res.status(400).json({ error: "Missing order data" });
+    }
 
     const { data: order, error } = await supabase
       .from("orders")
@@ -266,8 +285,34 @@ app.post("/api/orders", async (req, res) => {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("ORDER ERROR:", error);
     res.status(500).json({ error: "Order creation error" });
+
+  }
+
+});
+
+/* -------------------------
+   PUBLIC ORDERS (ADALO TEST)
+-------------------------- */
+
+app.get("/api/orders-public", async (req, res) => {
+
+  try {
+
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .limit(20);
+
+    if (error) throw error;
+
+    res.json(data);
+
+  } catch (error) {
+
+    console.error("ORDERS PUBLIC ERROR:", error);
+    res.status(500).json({ error: "Orders fetch error" });
 
   }
 
@@ -294,7 +339,7 @@ app.get("/api/orders", verifyApiKey, async (req, res) => {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("ORDERS ERROR:", error);
     res.status(500).json({ error: "Orders fetch error" });
 
   }
@@ -309,7 +354,7 @@ app.put("/api/order-status/:id", async (req, res) => {
 
   try {
 
-    const id = req.params.id;
+    const { id } = req.params;
     const { status } = req.body;
 
     const { data, error } = await supabase
@@ -325,7 +370,7 @@ app.put("/api/order-status/:id", async (req, res) => {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("STATUS UPDATE ERROR:", error);
     res.status(500).json({ error: "Status update error" });
 
   }
