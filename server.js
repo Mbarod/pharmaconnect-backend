@@ -149,35 +149,53 @@ app.get("/api/search", async (req, res) => {
    PHARMACIES PAR MEDICAMENT
 -------------------------- */
 
-app.get("/api/medicine-pharmacies/:medicine_id", async (req, res) => {
+app.get("/api/search", async (req, res) => {
 
   try {
 
-    const { medicine_id } = req.params;
+    const name = req.query.name;
+
+    if (!name) {
+      return res.json([]);
+    }
 
     const { data, error } = await supabase
       .from("pharmacy_medicines")
       .select(`
         price,
         stock,
-        pharmacies(id,name,address,city),
-        medicines(name)
+        pharmacies(id,name,city,address),
+        medicines(id,name,description,image_url)
       `)
-      .eq("medicine_id", medicine_id);
+      .ilike("medicines.name", `%${name}%`);
 
     if (error) throw error;
 
-    res.json(data);
+    const results = data.map(item => ({
+      pharmacy_id: item.pharmacies.id,
+      pharmacy_name: item.pharmacies.name,
+      pharmacy_city: item.pharmacies.city,
+      pharmacy_address: item.pharmacies.address,
+
+      medicine_id: item.medicines.id,
+      medicine_name: item.medicines.name,
+      medicine_description: item.medicines.description,
+      medicine_image: item.medicines.image_url,
+
+      price: item.price,
+      stock: item.stock
+    }));
+
+    res.json(results);
 
   } catch (error) {
 
-    console.error("MEDICINE PHARMACIES ERROR:", error);
-    res.status(500).json({ error: "Pharmacy fetch error" });
+    console.error(error);
+    res.status(500).json({ error: "Search error" });
 
   }
 
 });
-
 /* -------------------------
    GET ALL PHARMACIES
 -------------------------- */
