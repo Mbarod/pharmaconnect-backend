@@ -117,48 +117,33 @@ app.get("/api/search", async (req, res) => {
 
     const name = req.query.name;
 
-    if (!name) {
-      return res.json([]);
-    }
+if (!name) {
+  const { data } = await supabase
+    .from("pharmacy_medicines")
+    .select(`
+      price,
+      stock,
+      pharmacies(id,name,city,address),
+      medicines(id,name,description,image_url)
+    `)
+    .limit(5);
 
-    const { data, error } = await supabase
-      .from("pharmacy_medicines")
-      .select(`
-        price,
-        stock,
-        pharmacies(id,name,city,address),
-        medicines(id,name,description,image_url)
-      `)
-      .ilike("medicines.name", `%${name}%`);
+  const results = data.map(item => ({
+    pharmacy_id: item.pharmacies.id,
+    pharmacy_name: item.pharmacies.name,
+    pharmacy_city: item.pharmacies.city,
 
-    if (error) throw error;
+    medicine_id: item.medicines.id,
+    medicine_name: item.medicines.name,
 
-    const results = data.map(item => ({
-      pharmacy_id: item.pharmacies.id,
-      pharmacy_name: item.pharmacies.name,
-      pharmacy_city: item.pharmacies.city,
-      pharmacy_address: item.pharmacies.address,
+    price: item.price,
+    stock: item.stock
+  }));
 
-      medicine_id: item.medicines.id,
-      medicine_name: item.medicines.name,
-      medicine_description: item.medicines.description,
-      medicine_image: item.medicines.image_url,
+  return res.json(results);
+}
 
-      price: item.price,
-      stock: item.stock
-    }));
-
-    res.json(results);
-
-  } catch (error) {
-
-    console.error(error);
-    res.status(500).json({ error: "Search error" });
-
-  }
-
-});
-/* -------------------------
+    /* -------------------------
    PHARMACIES PAR MEDICAMENT
 -------------------------- */
 
