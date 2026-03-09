@@ -149,39 +149,36 @@ app.get("/api/search", async (req, res) => {
    PHARMACIES PAR MEDICAMENT
 -------------------------- */
 
-app.get("/api/search", async (req, res) => {
+app.get("/api/medicine-pharmacies/:medicine_id", async (req, res) => {
 
   try {
 
-    const name = req.query.name;
+    const { medicine_id } = req.params;
 
-if (!name) {
-  const { data } = await supabase
-    .from("pharmacy_medicines")
-    .select(`
-      price,
-      stock,
-      pharmacies(id,name,city,address),
-      medicines(id,name,description,image_url)
-    `)
-    .limit(5);
+    const { data, error } = await supabase
+      .from("pharmacy_medicines")
+      .select(`
+        price,
+        stock,
+        pharmacies(id,name,address,city),
+        medicines(name)
+      `)
+      .eq("medicine_id", medicine_id);
 
-  const results = data.map(item => ({
-    pharmacy_id: item.pharmacies.id,
-    pharmacy_name: item.pharmacies.name,
-    pharmacy_city: item.pharmacies.city,
+    if (error) throw error;
 
-    medicine_id: item.medicines.id,
-    medicine_name: item.medicines.name,
+    res.json(data);
 
-    price: item.price,
-    stock: item.stock
-  }));
+  } catch (error) {
 
-  return res.json(results);
-}
+    console.error("MEDICINE PHARMACIES ERROR:", error);
+    res.status(500).json({ error: "Pharmacy fetch error" });
 
-    /* -------------------------
+  }
+
+});
+
+/* -------------------------
    GET ALL PHARMACIES
 -------------------------- */
 
