@@ -66,6 +66,7 @@ const verifyApiKey = async (req, res, next) => {
 
   } catch (error) {
 
+    console.error(error);
     res.status(500).json({ error: "Auth error" });
 
   }
@@ -78,13 +79,22 @@ const verifyApiKey = async (req, res, next) => {
 
 app.get("/api/medicines", async (req, res) => {
 
-  const { data, error } = await supabase
-    .from("medicines")
-    .select("*");
+  try {
 
-  if (error) return res.status(400).json(error);
+    const { data, error } = await supabase
+      .from("medicines")
+      .select("*");
 
-  res.json(data);
+    if (error) throw error;
+
+    res.json(data);
+
+  } catch (error) {
+
+    console.error(error);
+    res.status(500).json({ error: "Medicines fetch error" });
+
+  }
 
 });
 
@@ -96,7 +106,7 @@ app.get("/api/search", async (req, res) => {
 
   try {
 
-    const { name } = req.query;
+    const name = req.query.name || "";
 
     const { data, error } = await supabase
       .from("pharmacy_medicines")
@@ -115,7 +125,6 @@ app.get("/api/search", async (req, res) => {
   } catch (error) {
 
     console.error(error);
-
     res.status(500).json({ error: "Search error" });
 
   }
@@ -130,7 +139,7 @@ app.get("/api/medicine-pharmacies/:medicine_id", async (req, res) => {
 
   try {
 
-    const { medicine_id } = req.params;
+    const medicine_id = req.params.medicine_id;
 
     const { data, error } = await supabase
       .from("pharmacy_medicines")
@@ -149,7 +158,6 @@ app.get("/api/medicine-pharmacies/:medicine_id", async (req, res) => {
   } catch (error) {
 
     console.error(error);
-
     res.status(500).json({ error: "Pharmacy fetch error" });
 
   }
@@ -157,20 +165,16 @@ app.get("/api/medicine-pharmacies/:medicine_id", async (req, res) => {
 });
 
 /* -------------------------
-   PHARMACY DETAILS
+   GET ALL PHARMACIES
 -------------------------- */
 
-app.get("/api/pharmacy/:id", async (req, res) => {
+app.get("/api/pharmacies", async (req, res) => {
 
   try {
 
-    const { id } = req.params;
-
     const { data, error } = await supabase
       .from("pharmacies")
-      .select("*")
-      .eq("id", id)
-      .single();
+      .select("*");
 
     if (error) throw error;
 
@@ -179,7 +183,39 @@ app.get("/api/pharmacy/:id", async (req, res) => {
   } catch (error) {
 
     console.error(error);
+    res.status(500).json({ error: "Pharmacies fetch error" });
 
+  }
+
+});
+
+/* -------------------------
+   GET ONE PHARMACY
+-------------------------- */
+
+app.get("/api/pharmacy/:id", async (req, res) => {
+
+  try {
+
+    const id = req.params.id;
+
+    const { data, error } = await supabase
+      .from("pharmacies")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({ error: "Pharmacy not found" });
+    }
+
+    res.json(data);
+
+  } catch (error) {
+
+    console.error(error);
     res.status(500).json({ error: "Pharmacy fetch error" });
 
   }
@@ -231,7 +267,6 @@ app.post("/api/orders", async (req, res) => {
   } catch (error) {
 
     console.error(error);
-
     res.status(500).json({ error: "Order creation error" });
 
   }
@@ -251,8 +286,7 @@ app.get("/api/orders", verifyApiKey, async (req, res) => {
     const { data, error } = await supabase
       .from("orders")
       .select("*")
-      .eq("pharmacy_id", pharmacy_id)
-      .eq("status", "pending");
+      .eq("pharmacy_id", pharmacy_id);
 
     if (error) throw error;
 
@@ -260,6 +294,7 @@ app.get("/api/orders", verifyApiKey, async (req, res) => {
 
   } catch (error) {
 
+    console.error(error);
     res.status(500).json({ error: "Orders fetch error" });
 
   }
@@ -274,8 +309,7 @@ app.put("/api/order-status/:id", async (req, res) => {
 
   try {
 
-    const { id } = req.params;
-
+    const id = req.params.id;
     const { status } = req.body;
 
     const { data, error } = await supabase
@@ -291,133 +325,8 @@ app.put("/api/order-status/:id", async (req, res) => {
 
   } catch (error) {
 
+    console.error(error);
     res.status(500).json({ error: "Status update error" });
-
-  }
-
-});
-
-/* -------------------------
-   CONFIRM ORDER
--------------------------- */
-
-app.get("/api/confirm-order/:id", async (req, res) => {
-
-  try {
-
-    const { id } = req.params;
-
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: "confirmed" })
-      .eq("id", id);
-
-    if (error) throw error;
-
-    res.json({
-      success: true,
-      order_id: id
-    });
-
-  } catch (error) {
-
-    res.status(500).json({ error: "Confirmation error" });
-
-  }
-
-});
-
-/* -------------------------
-   SYNC STOCK
--------------------------- */
-
-app.post("/api/sync-stock", verifyApiKey, async (req, res) => {
-
-  try {
-
-    const { stocks } = req.body;
-
-    for (const item of stocks) {
-
-      await supabase
-        .from("medicines")
-        .update({ stock: item.stock })
-        .eq("name", item.name);
-
-    }
-
-    res.json({ success: true });
-
-  } catch (error) {
-
-    res.status(500).json({ error: "Stock sync error" });
-
-  }
-
-});
-
-/* -------------------------
-   UPLOAD PRESCRIPTION
--------------------------- */
-
-app.post("/api/upload-prescription", upload.single("file"), async (req, res) => {
-
-  try {
-
-    const file = req.file;
-
-    const fileName = `${Date.now()}-${file.originalname}`;
-
-    const { data, error } = await supabase.storage
-      .from("prescriptions")
-      .upload(fileName, file.buffer);
-
-    if (error) throw error;
-
-    res.json({ file_url: data.path });
-
-  } catch (error) {
-
-    res.status(500).json({ error: "Upload error" });
-
-  }
-
-});
-
-/* -------------------------
-   AI AGENT
--------------------------- */
-
-app.post("/api/agent", async (req, res) => {
-
-  try {
-
-    const { message } = req.body;
-
-    const completion = await openai.chat.completions.create({
-
-      model: "gpt-4o-mini",
-
-      messages: [
-        {
-          role: "system",
-          content: "Tu es Pharmaconnect Gabon assistant pharmacie."
-        },
-        {
-          role: "user",
-          content: message
-        }
-      ]
-
-    });
-
-    res.json({
-      reply: completion.choices[0].message.content
-    });
-
-  } catch (error) {
-
-    res.status(500).json({ error: "AI error" });
 
   }
 
