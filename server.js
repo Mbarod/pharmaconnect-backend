@@ -177,8 +177,8 @@ results.push({
   pharmacy_latitude: pharmacy.latitude,
   pharmacy_longitude: pharmacy.longitude,
 
-  opening time: pharmacy.opening time,
-  closing time: pharmacy.closing time,
+  opening_time: pharmacy.opening_time,
+  closing_time: pharmacy.closing_time,
 
   status_open: status_open,
 
