@@ -227,36 +227,50 @@ app.get("/api/pharmacies", async (req, res) => {
    GET ONE PHARMACY
 -------------------------- */
 
-app.get("/api/pharmacy/:id", async (req, res) => {
+app.get("/api/pharmacies/:id", async (req, res) => {
 
   try {
 
-    const { id } = req.params;
-
     const { data, error } = await supabase
       .from("pharmacies")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+      .select("*");
 
     if (error) throw error;
 
-    if (!data) {
-      return res.status(404).json({ error: "Pharmacy not found" });
-    }
+    const results = data.map(pharmacy => {
 
-    res.json(data);
+      let status_open = "unknown";
 
-  
+      if (pharmacy.opening_time && pharmacy.closing_time) {
+
+        const now = new Date();
+        const hour = now.getHours();
+
+        const openHour = parseInt(pharmacy.opening_time.split(":")[0]);
+        const closeHour = parseInt(pharmacy.closing_time.split(":")[0]);
+
+        status_open = (hour >= openHour && hour < closeHour)
+          ? "open"
+          : "closed";
+      }
+
+      return {
+        ...pharmacy,
+        status_open
+      };
+
+    });
+
+    res.json(results);
+
   } catch (error) {
 
-    console.error("PHARMACY ERROR:", error);
-    res.status(500).json({ error: "Pharmacy fetch error" });
+    console.error(error);
+    res.status(500).json({ error: "Pharmacies fetch error" });
 
   }
 
 });
-
 /* -------------------------
    CREATE ORDER
 -------------------------- */
