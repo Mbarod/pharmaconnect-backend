@@ -200,7 +200,8 @@ app.get("/api/search", async (req, res) => {
 /* -------------------------
    GET ALL PHARMACIES
 -------------------------- */
-app.get("/api/pharmacies/:id", async (req, res) => {
+
+app.get("/api/pharmacies", async (req, res) => {
 
   try {
 
@@ -244,54 +245,37 @@ app.get("/api/pharmacies/:id", async (req, res) => {
   }
 
 });
+
 
 /* -------------------------
    GET ONE PHARMACY
 -------------------------- */
+
 app.get("/api/pharmacies/:id", async (req, res) => {
 
   try {
 
+    const id = req.params.id;
+
     const { data, error } = await supabase
       .from("pharmacies")
-      .select("*");
+      .select("*")
+      .eq("id", id)
+      .single();
 
     if (error) throw error;
 
-    const results = data.map(pharmacy => {
-
-      let status_open = "unknown";
-
-      if (pharmacy.opening_time && pharmacy.closing_time) {
-
-        const now = new Date();
-        const hour = now.getHours();
-
-        const openHour = parseInt(pharmacy.opening_time.split(":")[0]);
-        const closeHour = parseInt(pharmacy.closing_time.split(":")[0]);
-
-        status_open = (hour >= openHour && hour < closeHour)
-          ? "open"
-          : "closed";
-      }
-
-      return {
-        ...pharmacy,
-        status_open
-      };
-
-    });
-
-    res.json(results);
+    res.json(data);
 
   } catch (error) {
 
     console.error(error);
-    res.status(500).json({ error: "Pharmacies fetch error" });
+    res.status(500).json({ error: "Pharmacy fetch error" });
 
   }
 
 });
+
 /* -------------------------
    CREATE ORDER
 -------------------------- */
