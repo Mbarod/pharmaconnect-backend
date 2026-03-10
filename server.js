@@ -147,18 +147,19 @@ app.get("/api/search", async (req, res) => {
 
     if (error) throw error;
 
-    const results = data.map(item => ({
-      pharmacy_id: item.pharmacies.id,
-      pharmacy_name: item.pharmacies.name,
-      pharmacy_city: item.pharmacies.city,
+   const results = data.map(item => ({
+  pharmacy_id: item.pharmacies.id,
+  pharmacy_name: item.pharmacies.name,
+  pharmacy_city: item.pharmacies.city,
+  pharmacy_latitude: item.pharmacies.latitude,
+  pharmacy_longitude: item.pharmacies.longitude,
 
-      medicine_id: item.medicines.id,
-      medicine_name: item.medicines.name,
+  medicine_id: item.medicines.id,
+  medicine_name: item.medicines.name,
 
-      price: item.price,
-      stock: item.stock
-    }));
-
+  price: item.price,
+  stock: item.stock
+}));
     res.json(results);
 
   } catch (error) {
