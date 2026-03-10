@@ -154,12 +154,16 @@ app.get("/api/search", async (req, res) => {
   pharmacy_latitude: item.pharmacies.latitude,
   pharmacy_longitude: item.pharmacies.longitude,
 
+  opening_time: item.pharmacies.opening_time,
+  closing_time: item.pharmacies.closing_time,
+
   medicine_id: item.medicines.id,
   medicine_name: item.medicines.name,
 
   price: item.price,
   stock: item.stock
 }));
+
     res.json(results);
 
   } catch (error) {
@@ -253,6 +257,9 @@ app.get("/api/pharmacy/:id", async (req, res) => {
     }
 
     res.json(data);
+
+  opening_time: item.pharmacies.opening_time,
+  closing_time: item.pharmacies.closing_time,
 
   } catch (error) {
 
