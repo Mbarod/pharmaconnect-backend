@@ -140,22 +140,48 @@ app.get("/api/search", async (req, res) => {
         .eq("id", item.medicine_id)
         .single();
 
-      if (!medicine || !pharmacy) continue;
+      if (!pharmacy || !medicine) continue;
 
       if (name && !medicine.name.toLowerCase().includes(name.toLowerCase())) continue;
 
+      /* ----------- CALCUL OPEN / CLOSED ----------- */
+
+      let status_open = "unknown";
+
+      if (pharmacy.opening_time && pharmacy.closing_time) {
+
+        const now = new Date();
+
+        const hour = now.getHours();
+
+        const openHour = parseInt(pharmacy.opening_time.split(":")[0]);
+        const closeHour = parseInt(pharmacy.closing_time.split(":")[0]);
+
+        status_open = (hour >= openHour && hour < closeHour) ? "open" : "closed";
+
+      }
+
       results.push({
+
         pharmacy_id: pharmacy.id,
         pharmacy_name: pharmacy.name,
         pharmacy_city: pharmacy.city,
+        pharmacy_address: pharmacy.address,
+
         pharmacy_latitude: pharmacy.latitude,
         pharmacy_longitude: pharmacy.longitude,
+
+        opening_time: pharmacy.opening_time,
+        closing_time: pharmacy.closing_time,
+
+        status_open: status_open,
 
         medicine_id: medicine.id,
         medicine_name: medicine.name,
 
         price: item.price,
         stock: item.stock
+
       });
 
     }
@@ -166,39 +192,6 @@ app.get("/api/search", async (req, res) => {
 
     console.error("SEARCH ERROR:", err);
     res.status(500).json({ error: "Search error" });
-
-  }
-
-});
-
-    /* -------------------------
-   PHARMACIES PAR MEDICAMENT
--------------------------- */
-
-app.get("/api/medicine-pharmacies/:medicine_id", async (req, res) => {
-
-  try {
-
-    const { medicine_id } = req.params;
-
-    const { data, error } = await supabase
-      .from("pharmacy_medicines")
-      .select(`
-        price,
-        stock,
-        pharmacies(id,name,address,city),
-        medicines(name)
-      `)
-      .eq("medicine_id", medicine_id);
-
-    if (error) throw error;
-
-    res.json(data);
-
-  } catch (error) {
-
-    console.error("MEDICINE PHARMACIES ERROR:", error);
-    res.status(500).json({ error: "Pharmacy fetch error" });
 
   }
 
