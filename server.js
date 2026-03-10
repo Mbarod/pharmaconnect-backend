@@ -117,52 +117,78 @@ app.get("/api/search", async (req, res) => {
 
     const name = req.query.name;
 
-    let { data, error } = await supabase
+    let query = supabase
       .from("pharmacy_medicines")
       .select(`
         price,
         stock,
-        pharmacies(id,name,city,address),
-        medicines(id,name,description,image_url)
+        pharmacies(
+          id,
+          name,
+          city,
+          address,
+          latitude,
+          longitude,
+          opening_time,
+          closing_time
+        ),
+        medicines(
+          id,
+          name,
+          description,
+          image_url
+        )
       `)
       .limit(10);
 
     if (name) {
-
-      const response = await supabase
-        .from("pharmacy_medicines")
-        .select(`
-          price,
-          stock,
-          pharmacies(id,name,city,address),
-          medicines(id,name,description,image_url)
-        `)
-        .ilike("medicines.name", `%${name}%`)
-        .limit(10);
-
-      data = response.data;
-      error = response.error;
-
+      query = query.ilike("medicines.name", `%${name}%`);
     }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
-   const results = data.map(item => ({
-  pharmacy_id: item.pharmacies.id,
-  pharmacy_name: item.pharmacies.name,
-  pharmacy_city: item.pharmacies.city,
-  pharmacy_latitude: item.pharmacies.latitude,
-  pharmacy_longitude: item.pharmacies.longitude,
+    const now = new Date();
+    const currentHour = now.getHours();
 
-  opening_time: item.pharmacies.opening_time,
-  closing_time: item.pharmacies.closing_time,
+    const results = data.map(item => {
 
-  medicine_id: item.medicines.id,
-  medicine_name: item.medicines.name,
+      let status = "unknown";
 
-  price: item.price,
-  stock: item.stock
-}));
+      if (item.pharmacies.opening_time && item.pharmacies.closing_time) {
+
+        const open = parseInt(item.pharmacies.opening_time.split(":")[0]);
+        const close = parseInt(item.pharmacies.closing_time.split(":")[0]);
+
+        if (currentHour >= open && currentHour < close) {
+          status = "open";
+        } else {
+          status = "closed";
+        }
+
+      }
+
+      return {
+        pharmacy_id: item.pharmacies.id,
+        pharmacy_name: item.pharmacies.name,
+        pharmacy_city: item.pharmacies.city,
+        pharmacy_address: item.pharmacies.address,
+        pharmacy_latitude: item.pharmacies.latitude,
+        pharmacy_longitude: item.pharmacies.longitude,
+
+        opening_time: item.pharmacies.opening_time,
+        closing_time: item.pharmacies.closing_time,
+        status_open: status,
+
+        medicine_id: item.medicines.id,
+        medicine_name: item.medicines.name,
+
+        price: item.price,
+        stock: item.stock
+      };
+
+    });
 
     res.json(results);
 
@@ -174,7 +200,6 @@ app.get("/api/search", async (req, res) => {
   }
 
 });
-
     /* -------------------------
    PHARMACIES PAR MEDICAMENT
 -------------------------- */
@@ -258,9 +283,7 @@ app.get("/api/pharmacy/:id", async (req, res) => {
 
     res.json(data);
 
-  opening_time: item.pharmacies.opening_time,
-  closing_time: item.pharmacies.closing_time,
-
+  
   } catch (error) {
 
     console.error("PHARMACY ERROR:", error);
