@@ -165,40 +165,42 @@ app.get("/api/search", async (req, res) => {
 
       }
 
-      results.push({
+results.push({
 
-        pharmacy_id: pharmacy.id,
-        pharmacy_name: pharmacy.name,
-        pharmacy_city: pharmacy.city,
-        pharmacy_address: pharmacy.address,
+  pharmacy_id: pharmacy.id,
+  pharmacy_name: pharmacy.name,
+  pharmacy_city: pharmacy.city,
+  pharmacy_address: pharmacy.address,
 
-        pharmacy_latitude: pharmacy.latitude,
-        pharmacy_longitude: pharmacy.longitude,
+  pharmacy_phone: pharmacy.phone,
 
-        opening_time: pharmacy.opening_time,
-        closing_time: pharmacy.closing_time,
+  pharmacy_latitude: pharmacy.latitude,
+  pharmacy_longitude: pharmacy.longitude,
 
-        status_open: status_open,
+  opening_time: pharmacy.opening_time,
+  closing_time: pharmacy.closing_time,
 
-        medicine_id: medicine.id,
-        medicine_name: medicine.name,
+  status_open: status_open,
 
-        price: item.price,
-        stock: item.stock
+  medicine_id: medicine.id,
+  medicine_name: medicine.name,
+  medicine_description: medicine.description,
 
-      });
+  price: item.price,
+  stock: item.stock
 
-    }
+});
 
-    res.json(results);
+}
 
-  } catch (err) {
+res.json(results);
 
-    console.error("SEARCH ERROR:", err);
-    res.status(500).json({ error: "Search error" });
+} catch (err) {
 
-  }
+console.error("SEARCH ERROR:", err);
+res.status(500).json({ error: "Search error" });
 
+}
 });
 
 /* -------------------------
