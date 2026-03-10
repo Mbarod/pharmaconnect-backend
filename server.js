@@ -115,7 +115,11 @@ app.get("/api/search", async (req, res) => {
 
   try {
 
-    const name = req.query.name || "";
+    const name = req.query.name;
+
+    if (!name || name.trim() === "") {
+      return res.json([]);
+    }
 
     const { data: pm, error } = await supabase
       .from("pharmacy_medicines")
