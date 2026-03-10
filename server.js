@@ -117,73 +117,48 @@ app.get("/api/search", async (req, res) => {
 
     const name = req.query.name || "";
 
-    const { data, error } = await supabase
+    const { data: pm, error } = await supabase
       .from("pharmacy_medicines")
-      .select(`
-        price,
-        stock,
-        pharmacies (
-          id,
-          name,
-          city,
-          address,
-          latitude,
-          longitude,
-          opening_time,
-          closing_time
-        ),
-        medicines (
-          id,
-          name
-        )
-      `)
-      .ilike("medicines.name", `%${name}%`)
-      .limit(10);
+      .select("*")
+      .limit(20);
 
-    if (error) {
-      console.error("SUPABASE ERROR:", error);
-      return res.status(500).json({ error: "Database error" });
-    }
+    if (error) throw error;
 
-    const results = (data || []).map(item => {
+    const results = [];
 
-      let status = "unknown";
+    for (const item of pm) {
 
-      if (item.pharmacies?.opening_time && item.pharmacies?.closing_time) {
+      const { data: pharmacy } = await supabase
+        .from("pharmacies")
+        .select("*")
+        .eq("id", item.pharmacy_id)
+        .single();
 
-        const now = new Date().getHours();
+      const { data: medicine } = await supabase
+        .from("medicines")
+        .select("*")
+        .eq("id", item.medicine_id)
+        .single();
 
-        const open = parseInt(item.pharmacies.opening_time.split(":")[0]);
-        const close = parseInt(item.pharmacies.closing_time.split(":")[0]);
+      if (!medicine || !pharmacy) continue;
 
-        status = now >= open && now < close ? "open" : "closed";
+      if (name && !medicine.name.toLowerCase().includes(name.toLowerCase())) continue;
 
-      }
+      results.push({
+        pharmacy_id: pharmacy.id,
+        pharmacy_name: pharmacy.name,
+        pharmacy_city: pharmacy.city,
+        pharmacy_latitude: pharmacy.latitude,
+        pharmacy_longitude: pharmacy.longitude,
 
-      return {
-
-        pharmacy_id: item.pharmacies?.id,
-        pharmacy_name: item.pharmacies?.name,
-        pharmacy_city: item.pharmacies?.city,
-        pharmacy_address: item.pharmacies?.address,
-
-        pharmacy_latitude: item.pharmacies?.latitude,
-        pharmacy_longitude: item.pharmacies?.longitude,
-
-        opening_time: item.pharmacies?.opening_time,
-        closing_time: item.pharmacies?.closing_time,
-
-        status_open: status,
-
-        medicine_id: item.medicines?.id,
-        medicine_name: item.medicines?.name,
+        medicine_id: medicine.id,
+        medicine_name: medicine.name,
 
         price: item.price,
         stock: item.stock
+      });
 
-      };
-
-    });
+    }
 
     res.json(results);
 
