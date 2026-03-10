@@ -115,14 +115,14 @@ app.get("/api/search", async (req, res) => {
 
   try {
 
-    const name = req.query.name;
+    const name = req.query.name || "";
 
-    let query = supabase
+    const { data, error } = await supabase
       .from("pharmacy_medicines")
       .select(`
         price,
         stock,
-        pharmacies(
+        pharmacies (
           id,
           name,
           city,
@@ -132,74 +132,70 @@ app.get("/api/search", async (req, res) => {
           opening_time,
           closing_time
         ),
-        medicines(
+        medicines (
           id,
-          name,
-          description,
-          image_url
+          name
         )
       `)
+      .ilike("medicines.name", `%${name}%`)
       .limit(10);
 
-    if (name) {
-      query = query.ilike("medicines.name", `%${name}%`);
+    if (error) {
+      console.error("SUPABASE ERROR:", error);
+      return res.status(500).json({ error: "Database error" });
     }
 
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    const now = new Date();
-    const currentHour = now.getHours();
-
-    const results = data.map(item => {
+    const results = (data || []).map(item => {
 
       let status = "unknown";
 
-      if (item.pharmacies.opening_time && item.pharmacies.closing_time) {
+      if (item.pharmacies?.opening_time && item.pharmacies?.closing_time) {
+
+        const now = new Date().getHours();
 
         const open = parseInt(item.pharmacies.opening_time.split(":")[0]);
         const close = parseInt(item.pharmacies.closing_time.split(":")[0]);
 
-        if (currentHour >= open && currentHour < close) {
-          status = "open";
-        } else {
-          status = "closed";
-        }
+        status = now >= open && now < close ? "open" : "closed";
 
       }
 
       return {
-        pharmacy_id: item.pharmacies.id,
-        pharmacy_name: item.pharmacies.name,
-        pharmacy_city: item.pharmacies.city,
-        pharmacy_address: item.pharmacies.address,
-        pharmacy_latitude: item.pharmacies.latitude,
-        pharmacy_longitude: item.pharmacies.longitude,
 
-        opening_time: item.pharmacies.opening_time,
-        closing_time: item.pharmacies.closing_time,
+        pharmacy_id: item.pharmacies?.id,
+        pharmacy_name: item.pharmacies?.name,
+        pharmacy_city: item.pharmacies?.city,
+        pharmacy_address: item.pharmacies?.address,
+
+        pharmacy_latitude: item.pharmacies?.latitude,
+        pharmacy_longitude: item.pharmacies?.longitude,
+
+        opening_time: item.pharmacies?.opening_time,
+        closing_time: item.pharmacies?.closing_time,
+
         status_open: status,
 
-        medicine_id: item.medicines.id,
-        medicine_name: item.medicines.name,
+        medicine_id: item.medicines?.id,
+        medicine_name: item.medicines?.name,
 
         price: item.price,
         stock: item.stock
+
       };
 
     });
 
     res.json(results);
 
-  } catch (error) {
+  } catch (err) {
 
-    console.error("SEARCH ERROR:", error);
+    console.error("SEARCH ERROR:", err);
     res.status(500).json({ error: "Search error" });
 
   }
 
 });
+
     /* -------------------------
    PHARMACIES PAR MEDICAMENT
 -------------------------- */
