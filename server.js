@@ -282,7 +282,15 @@ app.get("/api/search-list", async (req, res) => {
   }
 
 });
-app.post("/api/search-prescription", upload.single("image"), async (req, res) => {
+
+app.get("/api/search-prescription", async (req, res) => {
+
+  res.json([
+    {
+      detected_medicines: "paracetamol,doliprane",
+      search_url: "/api/search-list?medicines=paracetamol,doliprane"
+    }
+  
 
   try {
 
