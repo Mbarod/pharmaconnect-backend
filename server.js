@@ -121,136 +121,154 @@ app.get("/api/search", async (req, res) => {
       return res.json([]);
     }
 
-    const { data: pm, error } = await supabase
-      .from("pharmacy_medicines")
+    const { data: medicines } = await supabase
+      .from("medicines")
       .select("*")
-      .limit(20);
+      .ilike("name", `%${name}%`);
 
-    if (error) throw error;
+    if (!medicines || medicines.length === 0) {
+      return res.json([]);
+    }
 
     const results = [];
 
-    for (const item of pm) {
+    for (const medicine of medicines) {
 
-      const { data: pharmacy } = await supabase
-        .from("pharmacies")
+      const { data: pharmacyMedicines } = await supabase
+        .from("pharmacy_medicines")
         .select("*")
-        .eq("id", item.pharmacy_id)
-        .single();
+        .eq("medicine_id", medicine.id);
 
-      const { data: medicine } = await supabase
-        .from("medicines")
-        .select("*")
-        .eq("id", item.medicine_id)
-        .single();
+      for (const item of pharmacyMedicines) {
 
-      if (!pharmacy || !medicine) continue;
+        const { data: pharmacy } = await supabase
+          .from("pharmacies")
+          .select("*")
+          .eq("id", item.pharmacy_id)
+          .single();
 
-      if (name && !medicine.name.toLowerCase().includes(name.toLowerCase())) continue;
+        if (!pharmacy) continue;
 
-      /* ----------- CALCUL OPEN / CLOSED ----------- */
+        let status_open = "unknown";
 
-      let status_open = "unknown";
+        if (pharmacy.opening_time && pharmacy.closing_time) {
 
-      if (pharmacy.opening_time && pharmacy.closing_time) {
+          const now = new Date().getHours();
 
-        const now = new Date();
+          const openHour = parseInt(pharmacy.opening_time.split(":")[0]);
+          const closeHour = parseInt(pharmacy.closing_time.split(":")[0]);
 
-        const hour = now.getHours();
+          status_open = (now >= openHour && now < closeHour) ? "open" : "closed";
 
-        const openHour = parseInt(pharmacy.opening_time.split(":")[0]);
-        const closeHour = parseInt(pharmacy.closing_time.split(":")[0]);
+        }
 
-        status_open = (hour >= openHour && hour < closeHour) ? "open" : "closed";
+        results.push({
+
+          pharmacy_id: pharmacy.id,
+          pharmacy_name: pharmacy.name,
+          pharmacy_city: pharmacy.city,
+          pharmacy_address: pharmacy.address,
+          pharmacy_phone: pharmacy.phone,
+
+          pharmacy_latitude: pharmacy.latitude,
+          pharmacy_longitude: pharmacy.longitude,
+
+          opening_time: pharmacy.opening_time,
+          closing_time: pharmacy.closing_time,
+
+          status_open,
+
+          medicine_id: medicine.id,
+          medicine_name: medicine.name,
+          medicine_description: medicine.description,
+
+          price: item.price,
+          stock: item.stock
+
+        });
 
       }
 
-results.push({
+    }
 
-  pharmacy_id: pharmacy.id,
-  pharmacy_name: pharmacy.name,
-  pharmacy_city: pharmacy.city,
-  pharmacy_address: pharmacy.address,
+    res.json(results);
 
-  pharmacy_phone: pharmacy.phone,
+  } catch (error) {
 
-  pharmacy_latitude: pharmacy.latitude,
-  pharmacy_longitude: pharmacy.longitude,
+    console.error("SEARCH ERROR:", error);
+    res.status(500).json({ error: "Search error" });
 
-  opening_time: pharmacy.opening_time,
-  closing_time: pharmacy.closing_time,
+  }
 
-  status_open: status_open,
-
-  medicine_id: medicine.id,
-  medicine_name: medicine.name,
-  medicine_description: medicine.description,
-
-  price: item.price,
-  stock: item.stock
-
-});
-
-}
-
-res.json(results);
-
-} catch (err) {
-
-console.error("SEARCH ERROR:", err);
-res.status(500).json({ error: "Search error" });
-
-}
 });
 
 app.get("/api/search-list", async (req, res) => {
 
   try {
 
-    const list = req.query.medicines;
+    const medicinesParam = req.query.medicines;
 
-    if (!list) return res.json([]);
+    if (!medicinesParam) {
+      return res.json([]);
+    }
 
-    const medicines = list.split(",");
+    const medicineNames = medicinesParam
+      .split(",")
+      .map(m => m.trim().toLowerCase());
 
-    const { data: pharmacies } = await supabase
+    const { data: pharmacies, error: pharmError } = await supabase
       .from("pharmacies")
       .select("*");
+
+    if (pharmError) throw pharmError;
 
     const results = [];
 
     for (const pharmacy of pharmacies) {
 
-      let hasAll = true;
+      let hasAllMedicines = true;
 
-      for (const medName of medicines) {
+      for (const name of medicineNames) {
 
-        const { data: med } = await supabase
+        /* chercher tous les médicaments correspondants */
+
+        const { data: meds, error: medError } = await supabase
           .from("medicines")
-          .select("id")
-          .ilike("name", `%${medName.trim()}%`)
-          .single();
+          .select("id,name")
+          .ilike("name", `%${name}%`);
 
-        if (!med) {
-          hasAll = false;
+        if (medError || !meds || meds.length === 0) {
+
+          hasAllMedicines = false;
           break;
+
         }
+
+        const medIds = meds.map(m => m.id);
+
+        /* vérifier si la pharmacie possède un de ces médicaments */
 
         const { data: pm } = await supabase
           .from("pharmacy_medicines")
-          .select("*")
+          .select("id")
           .eq("pharmacy_id", pharmacy.id)
-          .eq("medicine_id", med.id)
-          .single();
+          .in("medicine_id", medIds)
+          .limit(1);
 
-        if (!pm) {
-          hasAll = false;
+        if (!pm || pm.length === 0) {
+
+          hasAllMedicines = false;
           break;
+
         }
 
       }
 
-      if (hasAll) results.push(pharmacy);
+      if (hasAllMedicines) {
+
+        results.push(pharmacy);
+
+      }
 
     }
 
@@ -264,47 +282,46 @@ app.get("/api/search-list", async (req, res) => {
   }
 
 });
-
 app.post("/api/search-prescription", upload.single("image"), async (req, res) => {
 
   try {
 
-    const image = req.file;
-
-    if (!image) {
+    if (!req.file) {
       return res.status(400).json({ error: "No image uploaded" });
     }
 
-    const base64 = image.buffer.toString("base64");
+    const base64 = req.file.buffer.toString("base64");
 
     const response = await openai.responses.create({
+
       model: "gpt-4.1-mini",
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: "Extract the medicine names from this prescription."
-            },
-            {
-              type: "input_image",
-              image_url: `data:image/jpeg;base64,${base64}`
-            }
-          ]
-        }
-      ]
+
+      input: [{
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: "List only the medicine names from this prescription separated by commas."
+          },
+          {
+            type: "input_image",
+            image_url: `data:image/jpeg;base64,${base64}`
+          }
+        ]
+      }]
+
     });
 
     const text = response.output_text;
 
-    const medicines = text.split(",");
-
-    const query = medicines.join(",");
+    const medicines = text
+      .split(",")
+      .map(m => m.trim())
+      .filter(m => m !== "");
 
     res.json({
       detected_medicines: medicines,
-      search_url: `/api/search-list?medicines=${query}`
+      search_api: `/api/search-list?medicines=${medicines.join(",")}`
     });
 
   } catch (error) {
