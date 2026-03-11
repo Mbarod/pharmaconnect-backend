@@ -283,20 +283,61 @@ app.get("/api/pharmacies/:id", async (req, res) => {
 });
 
 /* -------------------------
-   CREATE ORDER
+   CREATE ORDER (MULTIPLE MEDICINES)
 -------------------------- */
 
 app.post("/api/orders", async (req, res) => {
 
   try {
 
-    const { user_name, phone, pharmacy_id, medicine_id, total_amount } = req.body;
+    const { user_name, phone, pharmacy_id, items } = req.body;
 
-    if (!user_name || !phone || !pharmacy_id || !medicine_id) {
+    if (!user_name || !phone || !pharmacy_id || !items || items.length === 0) {
       return res.status(400).json({ error: "Missing order data" });
     }
 
-    const { data: order, error } = await supabase
+    let total_amount = 0;
+    const orderItems = [];
+
+    for (const item of items) {
+
+      const { medicine_id, quantity } = item;
+
+      if (!medicine_id || !quantity) {
+        return res.status(400).json({ error: "Invalid item data" });
+      }
+
+      /* vérifier si la pharmacie possède ce médicament */
+
+      const { data: pharmacyMedicine, error } = await supabase
+        .from("pharmacy_medicines")
+        .select("*")
+        .eq("pharmacy_id", pharmacy_id)
+        .eq("medicine_id", medicine_id)
+        .single();
+
+      if (error || !pharmacyMedicine) {
+        return res.status(400).json({
+          error: `Medicine ${medicine_id} not available in this pharmacy`
+        });
+      }
+
+      const price = pharmacyMedicine.price;
+      const subtotal = price * quantity;
+
+      total_amount += subtotal;
+
+      orderItems.push({
+        medicine_id,
+        quantity,
+        price
+      });
+
+    }
+
+    /* créer la commande */
+
+    const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert([
         {
@@ -310,54 +351,33 @@ app.post("/api/orders", async (req, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (orderError) throw orderError;
 
-    await supabase
+    /* créer les order_items */
+
+    const itemsToInsert = orderItems.map(item => ({
+      order_id: order.id,
+      medicine_id: item.medicine_id,
+      quantity: item.quantity,
+      price: item.price
+    }));
+
+    const { error: itemsError } = await supabase
       .from("order_items")
-      .insert([
-        {
-          order_id: order.id,
-          medicine_id,
-          quantity: 1,
-          price: total_amount
-        }
-      ]);
+      .insert(itemsToInsert);
+
+    if (itemsError) throw itemsError;
 
     res.json({
       success: true,
-      order_id: order.id
+      order_id: order.id,
+      total_amount
     });
 
   } catch (error) {
 
     console.error("ORDER ERROR:", error);
     res.status(500).json({ error: "Order creation error" });
-
-  }
-
-});
-
-/* -------------------------
-   PUBLIC ORDERS (ADALO TEST)
--------------------------- */
-
-app.get("/api/orders-public", async (req, res) => {
-
-  try {
-
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .limit(20);
-
-    if (error) throw error;
-
-    res.json(data);
-
-  } catch (error) {
-
-    console.error("ORDERS PUBLIC ERROR:", error);
-    res.status(500).json({ error: "Orders fetch error" });
 
   }
 
