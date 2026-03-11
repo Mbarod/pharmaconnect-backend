@@ -203,6 +203,119 @@ res.status(500).json({ error: "Search error" });
 }
 });
 
+app.get("/api/search-list", async (req, res) => {
+
+  try {
+
+    const list = req.query.medicines;
+
+    if (!list) return res.json([]);
+
+    const medicines = list.split(",");
+
+    const { data: pharmacies } = await supabase
+      .from("pharmacies")
+      .select("*");
+
+    const results = [];
+
+    for (const pharmacy of pharmacies) {
+
+      let hasAll = true;
+
+      for (const medName of medicines) {
+
+        const { data: med } = await supabase
+          .from("medicines")
+          .select("id")
+          .ilike("name", `%${medName.trim()}%`)
+          .single();
+
+        if (!med) {
+          hasAll = false;
+          break;
+        }
+
+        const { data: pm } = await supabase
+          .from("pharmacy_medicines")
+          .select("*")
+          .eq("pharmacy_id", pharmacy.id)
+          .eq("medicine_id", med.id)
+          .single();
+
+        if (!pm) {
+          hasAll = false;
+          break;
+        }
+
+      }
+
+      if (hasAll) results.push(pharmacy);
+
+    }
+
+    res.json(results);
+
+  } catch (error) {
+
+    console.error("SEARCH LIST ERROR:", error);
+    res.status(500).json({ error: "Search list error" });
+
+  }
+
+});
+
+app.post("/api/search-prescription", upload.single("image"), async (req, res) => {
+
+  try {
+
+    const image = req.file;
+
+    if (!image) {
+      return res.status(400).json({ error: "No image uploaded" });
+    }
+
+    const base64 = image.buffer.toString("base64");
+
+    const response = await openai.responses.create({
+      model: "gpt-4.1-mini",
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: "Extract the medicine names from this prescription."
+            },
+            {
+              type: "input_image",
+              image_url: `data:image/jpeg;base64,${base64}`
+            }
+          ]
+        }
+      ]
+    });
+
+    const text = response.output_text;
+
+    const medicines = text.split(",");
+
+    const query = medicines.join(",");
+
+    res.json({
+      detected_medicines: medicines,
+      search_url: `/api/search-list?medicines=${query}`
+    });
+
+  } catch (error) {
+
+    console.error("PRESCRIPTION ERROR:", error);
+    res.status(500).json({ error: "Prescription analysis error" });
+
+  }
+
+});
+
 /* -------------------------
    GET ALL PHARMACIES
 -------------------------- */
