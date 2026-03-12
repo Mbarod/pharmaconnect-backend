@@ -399,17 +399,16 @@ console.log("Medicine IDs found:", medicineIds)
       }
 
       results.push({
-        pharmacy_id: pharmacy.id,
-        pharmacy_name: pharmacy.name,
-        address: pharmacy.address,
-        phone: pharmacy.phone,
-        latitude: pharmacy.latitude,
-        longitude: pharmacy.longitude,
-        distance_km: distance.toFixed(2),
-        total_price: totalPrice,
-        status_open
-      })
-
+  pharmacy_id: pharmacy.id,
+  pharmacy_name: pharmacy.name,
+  address: pharmacy.address,
+  phone: pharmacy.phone,
+  latitude: pharmacy.latitude,
+  longitude: pharmacy.longitude,
+  distance_km: distance.toFixed(2),
+  total_price: totalPrice,
+  status_open
+})
     }
 
     /* tri par distance */
