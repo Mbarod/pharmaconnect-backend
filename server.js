@@ -283,10 +283,11 @@ app.get("/api/search-list", async (req, res) => {
 
 });
 
-app.get("/api/search-prescription", async (req, res) => {
+app.get("/api/search-prescription", (req, res) => {
 
   res.json([
     {
+      image: "test.jpg",
       detected_medicines: "paracetamol,doliprane",
       search_url: "/api/search-list?medicines=paracetamol,doliprane"
     }
@@ -299,7 +300,7 @@ app.post("/api/search-prescription", upload.single("image"), async (req, res) =>
   try {
 
     if (!req.file) {
-      return res.status(400).json({ error: "No image uploaded" });
+      return res.status(400).json({ error: "Image is required" });
     }
 
     const base64 = req.file.buffer.toString("base64");
@@ -312,7 +313,7 @@ app.post("/api/search-prescription", upload.single("image"), async (req, res) =>
           content: [
             {
               type: "input_text",
-              text: "List only the medicine names from this prescription separated by commas."
+              text: "List only the medicine names separated by commas."
             },
             {
               type: "input_image",
@@ -326,13 +327,16 @@ app.post("/api/search-prescription", upload.single("image"), async (req, res) =>
     const text = response.output_text;
 
     const medicines = text
+      .toLowerCase()
+      .replace(/\n/g,",")
       .split(",")
       .map(m => m.trim())
       .filter(m => m !== "");
 
     res.json({
-      detected_medicines: medicines,
-      search_api: `/api/search-list?medicines=${medicines.join(",")}`
+      image: "uploaded",
+      detected_medicines: medicines.join(","),
+      search_url: `/api/search-list?medicines=${medicines.join(",")}`
     });
 
   } catch (error) {
