@@ -319,15 +319,21 @@ app.get("/api/search-best", async (req, res) => {
       .from("medicines")
       .select("id,name")
 
-    const medicineIds = meds
-      .filter(m =>
-        medicineNames.some(name =>
-          m.name.toLowerCase().includes(name)
-        )
-      )
-      .map(m => m.id)
+    const medicineIds = []
 
-    if (medicineIds.length === 0) return res.json([])
+for (const name of medicineNames) {
+
+  const match = meds.find(m =>
+    m.name.toLowerCase() === name
+  )
+
+  if (match) {
+    medicineIds.push(match.id)
+  }
+
+}
+   console.log("Medicine names:", medicineNames)
+console.log("Medicine IDs found:", medicineIds)
 
     /* récupérer toutes les pharmacies avec leurs médicaments */
 
