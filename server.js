@@ -295,7 +295,7 @@ app.get("/api/search-prescription", (req, res) => {
 
 });
 
-const fetch = require("node-fetch");
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 app.post("/api/search-prescription", async (req, res) => {
 
