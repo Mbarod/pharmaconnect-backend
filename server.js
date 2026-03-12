@@ -291,111 +291,25 @@ app.get("/api/search-best", async (req, res) => {
     const userLat = parseFloat(req.query.lat)
     const userLng = parseFloat(req.query.lng)
 
+    /* réponse test pour Adalo */
+
     if (!medicinesParam || !userLat || !userLng) {
-      return res.json([])
-    }
 
-    const medicineNames = medicinesParam
-      .split(",")
-      .map(m => m.trim().toLowerCase())
-
-    const { data: pharmacies } = await supabase
-      .from("pharmacies")
-      .select("*")
-
-    const results = []
-
-    for (const pharmacy of pharmacies) {
-
-      let hasAll = true
-      let totalPrice = 0
-
-      for (const name of medicineNames) {
-
-        const { data: med } = await supabase
-          .from("medicines")
-          .select("id,name")
-          .ilike("name", `%${name}%`)
-          .limit(1)
-          .single()
-
-        if (!med) {
-          hasAll = false
-          break
+      return res.json([
+        {
+          pharmacy_id: 1,
+          pharmacy_name: "Pharmacie Test",
+          address: "Libreville",
+          phone: "770000000",
+          latitude: 14.7167,
+          longitude: -17.4677,
+          distance_km: "1.2",
+          total_price: 2500,
+          status_open: "open"
         }
-
-        const { data: pm } = await supabase
-          .from("pharmacy_medicines")
-          .select("price")
-          .eq("pharmacy_id", pharmacy.id)
-          .eq("medicine_id", med.id)
-          .single()
-
-        if (!pm) {
-          hasAll = false
-          break
-        }
-
-        totalPrice += pm.price
-
-      }
-
-      if (!hasAll) continue
-
-      /* calcul distance GPS */
-
-      const distance = Math.sqrt(
-        Math.pow(pharmacy.latitude - userLat, 2) +
-        Math.pow(pharmacy.longitude - userLng, 2)
-      ) * 111
-
-      /* statut ouvert */
-
-      let status_open = "unknown"
-
-      if (pharmacy.opening_time && pharmacy.closing_time) {
-
-        const now = new Date()
-        const hour = now.getHours()
-
-        const openHour = parseInt(pharmacy.opening_time.split(":")[0])
-        const closeHour = parseInt(pharmacy.closing_time.split(":")[0])
-
-        status_open = (hour >= openHour && hour < closeHour)
-          ? "open"
-          : "closed"
-
-      }
-
-      results.push({
-        pharmacy_id: pharmacy.id,
-        pharmacy_name: pharmacy.name,
-        address: pharmacy.address,
-        phone: pharmacy.phone,
-        latitude: pharmacy.latitude,
-        longitude: pharmacy.longitude,
-        distance_km: distance.toFixed(2),
-        total_price: totalPrice,
-        status_open
-      })
+      ])
 
     }
-
-    /* trier par distance */
-
-    results.sort((a,b)=>a.distance_km - b.distance_km)
-
-    res.json(results)
-
-  } catch (error) {
-
-    console.error("SEARCH BEST ERROR:", error)
-    res.status(500).json({ error: "Search best error" })
-
-  }
-
-})
-
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 app.post("/api/search-prescription", async (req, res) => {
