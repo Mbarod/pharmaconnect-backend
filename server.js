@@ -299,7 +299,7 @@ app.get("/api/search-best", async (req, res) => {
         {
           pharmacy_id: 1,
           pharmacy_name: "Pharmacie Test",
-          address: "Libreville",
+          address: "Dakar",
           phone: "770000000",
           latitude: 14.7167,
           longitude: -17.4677,
