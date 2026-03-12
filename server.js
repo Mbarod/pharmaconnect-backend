@@ -301,8 +301,6 @@ app.get("/api/search-best", async (req, res) => {
           pharmacy_name: "Pharmacie Test",
           address: "Libreville",
           phone: "770000000",
-          latitude: 14.7167,
-          longitude: -17.4677,
           distance_km: "1.2",
           total_price: 2500,
           status_open: "open"
@@ -315,6 +313,28 @@ app.get("/api/search-best", async (req, res) => {
       .split(",")
       .map(m => m.trim().toLowerCase())
 
+    /* récupérer tous les médicaments correspondants */
+
+    const { data: meds } = await supabase
+      .from("medicines")
+      .select("id,name")
+
+    const medicineIds = meds
+      .filter(m =>
+        medicineNames.some(name =>
+          m.name.toLowerCase().includes(name)
+        )
+      )
+      .map(m => m.id)
+
+    if (medicineIds.length === 0) return res.json([])
+
+    /* récupérer toutes les pharmacies avec leurs médicaments */
+
+    const { data: pm } = await supabase
+      .from("pharmacy_medicines")
+      .select("pharmacy_id, medicine_id, price")
+
     const { data: pharmacies } = await supabase
       .from("pharmacies")
       .select("*")
@@ -323,42 +343,31 @@ app.get("/api/search-best", async (req, res) => {
 
     for (const pharmacy of pharmacies) {
 
-      let hasAll = true
-      let totalPrice = 0
+      const items = pm.filter(
+        p => p.pharmacy_id === pharmacy.id
+      )
 
-      for (const name of medicineNames) {
+      const pharmacyMedicineIds = items.map(i => i.medicine_id)
 
-        const { data: med } = await supabase
-          .from("medicines")
-          .select("id,name")
-          .ilike("name", `%${name}%`)
-          .limit(1)
-          .single()
-
-        if (!med) {
-          hasAll = false
-          break
-        }
-
-        const { data: pm } = await supabase
-          .from("pharmacy_medicines")
-          .select("price")
-          .eq("pharmacy_id", pharmacy.id)
-          .eq("medicine_id", med.id)
-          .single()
-
-        if (!pm) {
-          hasAll = false
-          break
-        }
-
-        totalPrice += pm.price
-
-      }
+      const hasAll = medicineIds.every(id =>
+        pharmacyMedicineIds.includes(id)
+      )
 
       if (!hasAll) continue
 
-      /* calcul distance GPS */
+      /* prix total */
+
+      let totalPrice = 0
+
+      for (const id of medicineIds) {
+
+        const item = items.find(i => i.medicine_id === id)
+
+        if (item) totalPrice += item.price
+
+      }
+
+      /* calcul distance */
 
       const distance = Math.sqrt(
         Math.pow(pharmacy.latitude - userLat, 2) +
@@ -397,6 +406,8 @@ app.get("/api/search-best", async (req, res) => {
 
     }
 
+    /* tri par distance */
+
     results.sort((a,b)=>a.distance_km - b.distance_km)
 
     res.json(results)
@@ -404,7 +415,10 @@ app.get("/api/search-best", async (req, res) => {
   } catch (error) {
 
     console.error("SEARCH BEST ERROR:", error)
-    res.status(500).json({ error: "Search best error" })
+
+    res.status(500).json({
+      error: "Search best error"
+    })
 
   }
 
