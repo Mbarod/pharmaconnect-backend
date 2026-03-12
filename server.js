@@ -290,7 +290,11 @@ app.get("/api/search-prescription", async (req, res) => {
       detected_medicines: "paracetamol,doliprane",
       search_url: "/api/search-list?medicines=paracetamol,doliprane"
     }
-  
+  ]);
+
+});
+
+app.post("/api/search-prescription", upload.single("image"), async (req, res) => {
 
   try {
 
@@ -301,23 +305,22 @@ app.get("/api/search-prescription", async (req, res) => {
     const base64 = req.file.buffer.toString("base64");
 
     const response = await openai.responses.create({
-
       model: "gpt-4.1-mini",
-
-      input: [{
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text: "List only the medicine names from this prescription separated by commas."
-          },
-          {
-            type: "input_image",
-            image_url: `data:image/jpeg;base64,${base64}`
-          }
-        ]
-      }]
-
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: "List only the medicine names from this prescription separated by commas."
+            },
+            {
+              type: "input_image",
+              image_url: `data:image/jpeg;base64,${base64}`
+            }
+          ]
+        }
+      ]
     });
 
     const text = response.output_text;
