@@ -295,18 +295,19 @@ app.get("/api/search-best", async (req, res) => {
 
     if (!medicinesParam || !userLat || !userLng) {
 
-      return res.json([
-        {
-          pharmacy_id: 1,
-          pharmacy_name: "Pharmacie Test",
-          address: "Libreville",
-          phone: "770000000",
-          distance_km: "1.2",
-          total_price: 2500,
-          status_open: "open"
-        }
-      ])
-
+     return res.json([
+  {
+    pharmacy_id: 1,
+    pharmacy_name: "Pharmacie Test",
+    address: "Libreville",
+    phone: "770000000",
+    latitude: 0.4162,
+    longitude: 9.4673,
+    distance_km: "1.2",
+    total_price: 2500,
+    status_open: "open"
+  }
+])
     }
 
     const medicineNames = medicinesParam
