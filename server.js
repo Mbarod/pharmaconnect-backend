@@ -295,31 +295,44 @@ app.get("/api/search-prescription", (req, res) => {
 
 });
 
-app.post("/api/search-prescription", upload.single("image"), async (req, res) => {
+const fetch = require("node-fetch");
+
+app.post("/api/search-prescription", async (req, res) => {
 
   try {
 
-    if (!req.file) {
-      return res.status(400).json({ error: "Image is required" });
+    const imageUrl = req.body.image;
+
+    if (!imageUrl) {
+      return res.status(400).json({ error: "Image URL required" });
     }
 
-    const base64 = req.file.buffer.toString("base64");
+    /* télécharger l'image */
+
+    const responseImg = await fetch(imageUrl);
+    const buffer = await responseImg.arrayBuffer();
+
+    const base64 = Buffer.from(buffer).toString("base64");
+
+    /* analyse IA */
 
     const response = await openai.responses.create({
       model: "gpt-4.1-mini",
-      input: [{
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text: "List only medicine names separated by commas."
-          },
-          {
-            type: "input_image",
-            image_url: `data:image/jpeg;base64,${base64}`
-          }
-        ]
-      }]
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: "List only the medicine names separated by commas."
+            },
+            {
+              type: "input_image",
+              image_url: `data:image/jpeg;base64,${base64}`
+            }
+          ]
+        }
+      ]
     });
 
     const text = response.output_text;
@@ -332,7 +345,7 @@ app.post("/api/search-prescription", upload.single("image"), async (req, res) =>
       .filter(m => m !== "");
 
     res.json({
-      image: "uploaded_image.jpg",
+      image: imageUrl,
       detected_medicines: medicines.join(","),
       search_url: `/api/search-list?medicines=${medicines.join(",")}`
     });

@@ -19,6 +19,7 @@
     "epress": "^0.0.1-security",
     "express": "^5.2.1",
     "multer": "^2.1.0",
+    "node-fetch": "^3.3.2",
     "openai": "^6.25.0"
   }
 }
