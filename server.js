@@ -542,16 +542,10 @@ app.get("/api/pharmacies", async (req, res) => {
 
 });
 
-
-/* -------------------------
-   GET ONE PHARMACY
--------------------------- */
-
 app.get("/api/pharmacies/:id", async (req, res) => {
-
   try {
 
-    const id = req.params.id;
+    const { id } = req.params;
 
     const { data, error } = await supabase
       .from("pharmacies")
@@ -564,17 +558,10 @@ app.get("/api/pharmacies/:id", async (req, res) => {
     res.json(data);
 
   } catch (error) {
-
-    console.error(error);
+    console.error("PHARMACY ERROR:", error);
     res.status(500).json({ error: "Pharmacy fetch error" });
-
   }
-
 });
-
-/* -------------------------
-   CREATE ORDER (MULTIPLE MEDICINES)
--------------------------- */
 
 app.post("/api/orders", async (req, res) => {
 
@@ -593,12 +580,6 @@ app.post("/api/orders", async (req, res) => {
 
       const { medicine_id, quantity } = item;
 
-      if (!medicine_id || !quantity) {
-        return res.status(400).json({ error: "Invalid item data" });
-      }
-
-      /* vérifier si la pharmacie possède ce médicament */
-
       const { data: pharmacyMedicine, error } = await supabase
         .from("pharmacy_medicines")
         .select("*")
@@ -608,7 +589,7 @@ app.post("/api/orders", async (req, res) => {
 
       if (error || !pharmacyMedicine) {
         return res.status(400).json({
-          error: `Medicine ${medicine_id} not available in this pharmacy`
+          error: `Medicine ${medicine_id} not available`
         });
       }
 
@@ -624,8 +605,6 @@ app.post("/api/orders", async (req, res) => {
       });
 
     }
-
-    /* créer la commande */
 
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -643,8 +622,6 @@ app.post("/api/orders", async (req, res) => {
 
     if (orderError) throw orderError;
 
-    /* créer les order_items */
-
     const itemsToInsert = orderItems.map(item => ({
       order_id: order.id,
       medicine_id: item.medicine_id,
@@ -659,9 +636,12 @@ app.post("/api/orders", async (req, res) => {
     if (itemsError) throw itemsError;
 
     res.json({
-      success: true,
-      order_id: order.id,
-      total_amount
+      id: order.id,
+      user_name,
+      phone,
+      pharmacy_id,
+      total_amount,
+      status: "pending"
     });
 
   } catch (error) {
@@ -677,20 +657,18 @@ app.post("/api/orders", async (req, res) => {
    GET ORDERS PHARMACY
 -------------------------- */
 
-app.get("/api/orders", verifyApiKey, async (req, res) => {
+app.get("/api/orders", async (req, res) => {
 
   try {
-
-    const pharmacy_id = req.pharmacy.id;
 
     const { data, error } = await supabase
       .from("orders")
       .select("*")
-      .eq("pharmacy_id", pharmacy_id);
+      .order("id", { ascending: false });
 
     if (error) throw error;
 
-    res.json(data);
+    res.json(data || []);
 
   } catch (error) {
 
@@ -705,12 +683,16 @@ app.get("/api/orders", verifyApiKey, async (req, res) => {
    UPDATE ORDER STATUS
 -------------------------- */
 
-app.put("/api/order-status/:id", async (req, res) => {
+app.put("/api/orders/:id/status", async (req, res) => {
 
   try {
 
     const { id } = req.params;
     const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: "Missing status" });
+    }
 
     const { data, error } = await supabase
       .from("orders")
