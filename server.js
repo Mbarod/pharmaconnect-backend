@@ -707,21 +707,31 @@ app.get("/api/orders", async (req, res) => {
 /* -------------------------
    UPDATE ORDER STATUS
 -------------------------- */
+/* -------------------------
+   UPDATE ORDER PAYMENT
+-------------------------- */
 
-app.put("/api/orders/:id/status", async (req, res) => {
+app.put("/api/orders/:id/payment", async (req, res) => {
 
   try {
 
     const { id } = req.params;
-    const { status } = req.body;
 
-    if (!status) {
-      return res.status(400).json({ error: "Missing status" });
-    }
+    const {
+      payment_status,
+      payment_operator,
+      payment_phone,
+      payment_reference
+    } = req.body;
 
     const { data, error } = await supabase
       .from("orders")
-      .update({ status })
+      .update({
+        payment_status,
+        payment_operator,
+        payment_phone,
+        payment_reference
+      })
       .eq("id", id)
       .select()
       .single();
@@ -732,8 +742,8 @@ app.put("/api/orders/:id/status", async (req, res) => {
 
   } catch (error) {
 
-    console.error("STATUS UPDATE ERROR:", error);
-    res.status(500).json({ error: "Status update error" });
+    console.error("PAYMENT UPDATE ERROR:", error);
+    res.status(500).json({ error: "Payment update error" });
 
   }
 
