@@ -656,7 +656,6 @@ app.post("/api/orders", async (req, res) => {
 /* -------------------------
    GET ORDERS PHARMACY
 -------------------------- */
-
 app.get("/api/orders", async (req, res) => {
 
   try {
@@ -667,20 +666,6 @@ app.get("/api/orders", async (req, res) => {
       .order("id", { ascending: false });
 
     if (error) throw error;
-
-    /* IMPORTANT pour Adalo */
-    if (!data || data.length === 0) {
-      return res.json([
-        {
-          id: 1,
-          user_name: "Test User",
-          phone: "770000000",
-          pharmacy_id: 1,
-          total_amount: 1000,
-          status: "pending"
-        }
-      ]);
-    }
 
     res.json(data);
 
