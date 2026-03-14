@@ -668,7 +668,21 @@ app.get("/api/orders", async (req, res) => {
 
     if (error) throw error;
 
-    res.json(data || []);
+    /* IMPORTANT pour Adalo */
+    if (!data || data.length === 0) {
+      return res.json([
+        {
+          id: 1,
+          user_name: "Test User",
+          phone: "770000000",
+          pharmacy_id: 1,
+          total_amount: 1000,
+          status: "pending"
+        }
+      ]);
+    }
+
+    res.json(data);
 
   } catch (error) {
 
