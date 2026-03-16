@@ -860,6 +860,110 @@ app.put("/api/orders/:id/payment", async (req, res) => {
 
 });
 
+app.get("/api/nearby-drivers", async (req,res)=>{
+
+try{
+
+const {lat,lng} = req.query
+
+const {data:drivers} = await supabase
+.from("drivers")
+.select("*")
+.eq("online",true)
+
+const results=[]
+
+for(const driver of drivers){
+
+const distance=Math.sqrt(
+Math.pow(driver.latitude-lat,2)+
+Math.pow(driver.longitude-lng,2)
+)*111
+
+if(distance<5){
+
+results.push({
+...driver,
+distance_km:distance
+})
+
+}
+
+}
+
+results.sort((a,b)=>a.distance_km-b.distance_km)
+
+res.json(results)
+
+}catch(err){
+
+console.log(err)
+res.status(500).json({error:"driver search error"})
+
+}
+
+});
+
+supabase
+.channel("orders")
+.on(
+"postgres_changes",
+{
+event:"UPDATE",
+schema:"public",
+table:"orders"
+},
+(payload)=>{
+
+const order=payload.new
+
+if(order.delivery_status==="waiting_driver"){
+
+showDeliveryPopup(order)
+
+}
+
+}
+)
+.subscribe()
+
+app.put("/api/orders/:id/assign-driver", async(req,res)=>{
+
+const {id}=req.params
+const {driver_id}=req.body
+
+const {data}=await supabase
+.from("orders")
+.update({
+driver_id,
+delivery_status:"driver_assigned"
+})
+.eq("id",id)
+.select()
+.single()
+
+res.json(data)
+
+})
+
+app.put("/api/orders/:id/delivered", async(req,res)=>{
+
+const {id}=req.params
+
+const {data}=await supabase
+.from("orders")
+.update({
+delivery_status:"delivered"
+})
+.eq("id",id)
+.select()
+.single()
+
+res.json(data)
+
+})
+
+
 /* -------------------------
    SERVER
 -------------------------- */
