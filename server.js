@@ -654,51 +654,158 @@ app.post("/api/orders", async (req, res) => {
 });
 
 /* -------------------------
-   GET ORDERS PHARMACY
+   CREATE ORDER
 -------------------------- */
 
-app.get("/api/orders", async (req, res) => {
+app.post("/api/orders", async (req, res) => {
 
   try {
+
+    const { user_name, phone, pharmacy_id, items } = req.body;
+
+    if (!user_name || !phone || !pharmacy_id || !items) {
+      return res.status(400).json({
+        error: "Missing order data"
+      });
+    }
+
+    let total_amount = 0;
+
+    const orderItems = [];
+
+    for (const item of items) {
+
+      const { medicine_id, quantity } = item;
+
+      const { data: pharmacyMedicine, error } = await supabase
+        .from("pharmacy_medicines")
+        .select("*")
+        .eq("pharmacy_id", pharmacy_id)
+        .eq("medicine_id", medicine_id)
+        .single();
+
+      if (!pharmacyMedicine) {
+
+        return res.status(400).json({
+          error: "Medicine not available in this pharmacy"
+        });
+
+      }
+
+      const price = pharmacyMedicine.price;
+
+      total_amount += price * quantity;
+
+      orderItems.push({
+        medicine_id,
+        quantity,
+        price
+      });
+
+    }
+
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .insert([{
+        user_name,
+        phone,
+        pharmacy_id,
+        total_amount,
+        status: "pending",
+        payment_status: "unpaid"
+      }])
+      .select()
+      .single();
+
+    if (orderError) throw orderError;
+
+    const itemsToInsert = orderItems.map(item => ({
+      order_id: order.id,
+      medicine_id: item.medicine_id,
+      quantity: item.quantity,
+      price: item.price
+    }));
+
+    await supabase
+      .from("order_items")
+      .insert(itemsToInsert);
+
+    res.json(order);
+
+  } catch (error) {
+
+    console.error("ORDER ERROR:", error);
+
+    res.status(500).json({
+      error: "Order creation error"
+    });
+
+  }
+
+});
+
+// --------------------------------
+// GET ORDERS BY PHARMACY
+// --------------------------------
+
+app.get("/api/orders/:pharmacy_id", async (req, res) => {
+
+  try {
+
+    const { pharmacy_id } = req.params;
 
     const { data, error } = await supabase
       .from("orders")
       .select("*")
-      .order("id", { ascending: false });
+      .eq("pharmacy_id", pharmacy_id)
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    if (!data || data.length === 0) {
-
-      return res.json([
-        {
-          id: 1,
-          user_name: "Test User",
-          phone: "770000000",
-          pharmacy_id: 1,
-          total_amount: 1000,
-          status: "pending"
-        }
-      ]);
-
-    }
-
-    return res.json(data);
+    res.json(data || []);
 
   } catch (error) {
 
-    console.error("ORDERS ERROR:", error);
+    console.error("ORDERS FETCH ERROR:", error);
 
-    return res.json([
-      {
-        id: 1,
-        user_name: "Test User",
-        phone: "770000000",
-        pharmacy_id: 1,
-        total_amount: 1000,
-        status: "pending"
-      }
-    ]);
+    res.status(500).json({
+      error: "Orders fetch error"
+    });
+
+  }
+
+});
+
+/* -------------------------
+   CONFIRM ORDER
+-------------------------- */
+
+app.get("/api/confirm-order/:id", async (req, res) => {
+
+  try {
+
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from("orders")
+      .update({
+        status: "confirmed"
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(data);
+
+  } catch (error) {
+
+    console.error("CONFIRM ERROR:", error);
+
+    res.status(500).json({
+      error: "Confirm order error"
+    });
 
   }
 
@@ -707,8 +814,9 @@ app.get("/api/orders", async (req, res) => {
 /* -------------------------
    UPDATE ORDER STATUS
 -------------------------- */
+
 /* -------------------------
-   UPDATE ORDER PAYMENT
+   UPDATE PAYMENT
 -------------------------- */
 
 app.put("/api/orders/:id/payment", async (req, res) => {
@@ -742,8 +850,11 @@ app.put("/api/orders/:id/payment", async (req, res) => {
 
   } catch (error) {
 
-    console.error("PAYMENT UPDATE ERROR:", error);
-    res.status(500).json({ error: "Payment update error" });
+    console.error("PAYMENT ERROR:", error);
+
+    res.status(500).json({
+      error: "Payment update error"
+    });
 
   }
 
